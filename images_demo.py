@@ -1097,11 +1097,15 @@ all[768:, 768:1024, :] = img_fake_4
 # cv2.imshow('img_shape_4', lm_fake_4 * 255)
 # out.write(all)
 
-cv2.imshow('demo', all)
+# cv2.imshow('demo', all)
 
 cv2.imwrite('./result/img_fake{}.png'.format(nn), img_fake)
+cv2.imwrite('./result/img_fake_2{}.png'.format(nn), img_fake_2)
+cv2.imwrite('./result/img_fake_3{}.png'.format(nn), img_fake_3)
+cv2.imwrite('./result/img_fake_4{}.png'.format(nn), img_fake_4)
+
 cv2.imwrite('./result/img_crop{}.png'.format(nn), img_crop2)
-cv2.imwrite('./result/img_fake_ori{}.png'.format(nn), img_fake_2)
+cv2.imwrite('./result/img_fake_ori{}.png'.format(nn), img_crop)
 
 # save_image(lm_shape_fake[0], 1, './result/img_shape_fake{}.png'.format(nn))
 cv2.imwrite('./result/img_shape_fake{}.png'.format(nn), lm_fake*255)
