@@ -3,7 +3,6 @@ from skimage import io
 import torch
 import timeit
 import cv2
-# from torch.quantization import QuantStub, DeQuantStub
 import numpy as np
 import os
 from skimage import transform as trans
@@ -246,6 +245,12 @@ def save_image(x, ncol, filename, loss = 'perceptual'):
         x = denormalize(x)
     vutils.save_image(x.cpu(), filename, nrow=ncol, padding=0)
 
+"""
+***IDSG模型***
+传入source(经过Ef,生成r_s)
+传入pose生成的action code γ
+结合r_s,γ生成 l_t(即landmark with target pose and source face)
+"""
 class Solver_2(nn.Module):
     def __init__(self, args):
         super().__init__()
@@ -298,6 +303,11 @@ class Solver_2(nn.Module):
 
         return lm_fake, lm_fake_2, lm_fake_3, lm_fake_4
 
+"""
+***RFG模型***
+传入l_t和source生成的S_s(即style code)
+生成最终的reenactment image （I_t）
+"""
 class Solver(nn.Module):
     def __init__(self, args):
         super().__init__()
@@ -515,8 +525,8 @@ parser.add_argument('--eval_every', type=int, default=500000)
 
 args = parser.parse_args()
 
-#！！！！！！暂时注释
-# solver = Solver(args)
+
+solver = Solver(args)
 
 
 print("Loading the IDSG Model......")
@@ -666,30 +676,27 @@ parser.add_argument('--decay_every', type=int, default=10000)
 
 args = parser.parse_args()
 
-#！！！！暂时注释
 solver_2 = Solver_2(args)
 
 print("Loading the FAN Model......")
-
-#！！！！暂时注释
 fa = face_alignment.FaceAlignment(face_alignment.LandmarksType._2D, flip_input=True, device='cuda')
 
 
-print("Loading the Camera......")
-print(" ")
-print("If you want to exit,please press (ESC) !!")
-cap = cv2.VideoCapture(0)
+# print("Loading the Camera......")
+# print(" ")
+# print("If you want to exit,please press (ESC) !!")
+# cap = cv2.VideoCapture(0)
 
 
-width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+# width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+# height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+# cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+# cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out = cv2.VideoWriter('output.avi', fourcc, 5.0, (1024, 1024))
+# fourcc = cv2.VideoWriter_fourcc(*'XVID')
+# out = cv2.VideoWriter('output.avi', fourcc, 5.0, (1024, 1024))
 
 
 def drawshape(landmarks):
@@ -969,159 +976,135 @@ source_all[1,:,:,:] = source_2
 source_all[2,:,:,:] = source_3
 source_all[3,:,:,:] = source_4
 
-#！！！！暂时注释
-# source_style_code = solver.extract(source_all)
-
+"""
+S_s: style code of source face(Es的output, 并经过adain)
+"""
+source_style_code = solver.extract(source_all)
 
 
 
 nn = 0
-while (cap.isOpened()):
-    # start = timeit.default_timer()
-    ret, frame = cap.read()
-    print(frame.shape)
+# 传入pose_guide images （之后改成循环）
+frame = cv2.imread('./pose_guides/pose_1.jpg') 
 
-    try:
-        preds = fa.get_landmarks(frame)
-        print(preds)
+"""
+pose guide image 经过 Fl 和 El得到 action_code
+"""
 
-        img_crop2, img_shape, shape = get_arcface(frame, preds)
+preds = fa.get_landmarks(frame)
+# print(preds)
+img_crop2, img_shape, shape = get_arcface(frame, preds)
+# print(shape)
 
-        print(shape)
+shape = torch.FloatTensor(shape)
 
-        # shape = torch.FloatTensor(shape)
+shape_all = np.zeros((4, 136))
 
-        # shape_all = np.zeros((4, 136))
+shape_all = torch.from_numpy(shape_all)
 
-        # shape_all = torch.from_numpy(shape_all)
+shape_all = shape_all.float()
 
-        # shape_all = shape_all.float()
-
-        # shape_all[0, :] = shape
-        # shape_all[1, :] = shape
-        # shape_all[2, :] = shape
-        # shape_all[3, :] = shape
-
+shape_all[0, :] = shape
+shape_all[1, :] = shape
+shape_all[2, :] = shape
+shape_all[3, :] = shape
 
 
-        # lm_fake, lm_fake_2, lm_fake_3, lm_fake_4 = solver_2.sample(source_all, shape_all)
+"""
+生成l_t (landmark with target pose and source face)
+这里传入source_all，需要经过Ef，生成r_s;
+将r_s和action code γ 结合最后生成l_t
+"""
+lm_fake, lm_fake_2, lm_fake_3, lm_fake_4 = solver_2.sample(source_all, shape_all)
 
-        # lm_shape_fake = toTensor(lm_fake)
-        # lm_shape_fake_2 = toTensor(lm_fake_2)
-        # lm_shape_fake_3 = toTensor(lm_fake_3)
-        # lm_shape_fake_4 = toTensor(lm_fake_4)
+lm_shape_fake = toTensor(lm_fake)
+lm_shape_fake_2 = toTensor(lm_fake_2)
+lm_shape_fake_3 = toTensor(lm_fake_3)
+lm_shape_fake_4 = toTensor(lm_fake_4)
 
-        # reference_all = np.zeros((4, 3, 256, 256))
+reference_all = np.zeros((4, 3, 256, 256))
 
-        # reference_all = torch.from_numpy(reference_all)
+reference_all = torch.from_numpy(reference_all)
 
-        # reference_all = reference_all.float()
+reference_all = reference_all.float()
 
-        # reference_all[0, :, :, :] = lm_shape_fake
-        # reference_all[1, :, :, :] = lm_shape_fake_2
-        # reference_all[2, :, :, :] = lm_shape_fake_3
-        # reference_all[3, :, :, :] = lm_shape_fake_4
+reference_all[0, :, :, :] = lm_shape_fake
+reference_all[1, :, :, :] = lm_shape_fake_2
+reference_all[2, :, :, :] = lm_shape_fake_3
+reference_all[3, :, :, :] = lm_shape_fake_4
 
+"""
+RFG模型：
+传入landmark l_t 与 source image 生成的 S_s(style code)
+生成最终I_t reenactment output
+"""
+img_fake, img_fake_2, img_fake_3, img_fake_4 = solver.sample(source_style_code, reference_all)
 
-        # img_fake, img_fake_2, img_fake_3, img_fake_4 = solver.sample(source_style_code, reference_all)
-        # #
-        # img_fake = cv2.cvtColor(img_fake, cv2.COLOR_RGB2BGR)
-        # img_fake_2 = cv2.cvtColor(img_fake_2, cv2.COLOR_RGB2BGR)
-        # img_fake_3 = cv2.cvtColor(img_fake_3, cv2.COLOR_RGB2BGR)
-        # img_fake_4 = cv2.cvtColor(img_fake_4, cv2.COLOR_RGB2BGR)
-
-        #*************原文已注释********************
-        # all = np.zeros((768, 1024, 3), np.uint8)
-        #
-        # all[:256, 384:640, :] = img_crop2
-        #
-        #
-        # all[256:512, :256, :] = img_crop
-        # all[256:512, 256:512, :] = img_crop_2
-        # all[256:512, 512:768, :] = img_crop_3
-        # all[256:512, 768:1024, :] = img_crop_4
-        #
-        #
-        # all[512:, :256, :] = img_fake
-        # all[512:, 256:512, :] = img_fake_2
-        # all[512:, 512:768, :] = img_fake_3
-        # all[512:, 768:1024, :] = img_fake_4
-        #*****************************************
-        
-        # all = np.zeros((1024, 1024, 3), np.uint8)
-
-        # all[:256, 384:640, :] = img_crop2
+img_fake = cv2.cvtColor(img_fake, cv2.COLOR_RGB2BGR)
+img_fake_2 = cv2.cvtColor(img_fake_2, cv2.COLOR_RGB2BGR)
+img_fake_3 = cv2.cvtColor(img_fake_3, cv2.COLOR_RGB2BGR)
+img_fake_4 = cv2.cvtColor(img_fake_4, cv2.COLOR_RGB2BGR)
 
 
-        # all[256:512, :256, :] = img_crop
-        # all[256:512, 256:512, :] = img_crop_2
-        # all[256:512, 512:768, :] = img_crop_3
-        # all[256:512, 768:1024, :] = img_crop_4
+# all = np.zeros((768, 1024, 3), np.uint8)
+#
+# all[:256, 384:640, :] = img_crop2
+#
+#
+# all[256:512, :256, :] = img_crop
+# all[256:512, 256:512, :] = img_crop_2
+# all[256:512, 512:768, :] = img_crop_3
+# all[256:512, 768:1024, :] = img_crop_4
+#
+#
+# all[512:, :256, :] = img_fake
+# all[512:, 256:512, :] = img_fake_2
+# all[512:, 512:768, :] = img_fake_3
+# all[512:, 768:1024, :] = img_fake_4
+
+"""
+从上到下依次展示：
+1- 实时视频的frame图 
+2- img_crop_x 为 4张 source图
+3- lm_fake_x 为 4张轮廓图 即 l_t
+4- img_fake_x 为最终的output 即 I_t
+"""
+all = np.zeros((1024, 1024, 3), np.uint8)
+
+all[:256, 384:640, :] = img_crop2
 
 
-        # all[512:768, :256, :] = lm_fake*255
-        # all[512:768, 256:512, :] = lm_fake_2*255
-        # all[512:768, 512:768, :] = lm_fake_3 * 255
-        # all[512:768, 768:1024, :] = lm_fake_4 * 255
+all[256:512, :256, :] = img_crop
+all[256:512, 256:512, :] = img_crop_2
+all[256:512, 512:768, :] = img_crop_3
+all[256:512, 768:1024, :] = img_crop_4
 
 
-        # all[768:, :256, :] = img_fake
-        # all[768:, 256:512, :] = img_fake_2
-        # all[768:, 512:768, :] = img_fake_3
-        # all[768:, 768:1024, :] = img_fake_4
+all[512:768, :256, :] = lm_fake*255
+all[512:768, 256:512, :] = lm_fake_2*255
+all[512:768, 512:768, :] = lm_fake_3 * 255
+all[512:768, 768:1024, :] = lm_fake_4 * 255
 
 
+all[768:, :256, :] = img_fake
+all[768:, 256:512, :] = img_fake_2
+all[768:, 512:768, :] = img_fake_3
+all[768:, 768:1024, :] = img_fake_4
 
+# cv2.imshow('img_shape', lm_fake*255)
+# cv2.imshow('img_shape_2', lm_fake_2*255)
+# cv2.imshow('img_shape_3', lm_fake_3 * 255)
+# cv2.imshow('img_shape_4', lm_fake_4 * 255)
+# out.write(all)
 
-        #********原文已注释********************
-        # cv2.imshow('img_shape', lm_fake*255)
-        # cv2.imshow('img_shape_2', lm_fake_2*255)
-        # cv2.imshow('img_shape_3', lm_fake_3 * 255)
-        # cv2.imshow('img_shape_4', lm_fake_4 * 255)
-        #*****************************************
+cv2.imshow('demo', all)
 
-        out.write(all)
-        cv2.imshow('demo', all)
+cv2.imwrite('./result/img_fake{}.png'.format(nn), img_fake)
+cv2.imwrite('./result/img_crop{}.png'.format(nn), img_crop2)
+cv2.imwrite('./result/img_fake_ori{}.png'.format(nn), img_fake_2)
 
-    except:
-        # all = np.zeros((768, 1024, 3), np.uint8)
+# save_image(lm_shape_fake[0], 1, './result/img_shape_fake{}.png'.format(nn))
+cv2.imwrite('./result/img_shape_fake{}.png'.format(nn), lm_fake*255)
+cv2.imwrite('./result/img_shape_ori{}.png'.format(nn), img_shape)
 
-        all = np.zeros((1024, 1024, 3), np.uint8)
-
-        # all[:256, 384:640, :] = img_crop2
-
-        out.write(all)
-        cv2.imshow('demo', all)
-
-        # cv2.imshow('img_ref', img_crop2)
-
-    flag = cv2.waitKey(1)
-
-
-# press "c" to save the result
-    if flag == 67 or flag == 99:
-
-        # cv2.imwrite('./result/img_fake{}.png'.format(nn), img_fake)
-        # cv2.imwrite('./result/img_crop{}.png'.format(nn), img_crop2)
-        # cv2.imwrite('./result/img_fake_ori{}.png'.format(nn), img_fake_2)
-
-        # # save_image(lm_shape_fake[0], 1, './result/img_shape_fake{}.png'.format(nn))
-        # cv2.imwrite('./result/img_shape_fake{}.png'.format(nn), lm_fake*255)
-        # cv2.imwrite('./result/img_shape_ori{}.png'.format(nn), img_shape)
-
-        nn += 1
-
-
-    if flag == 27:
-        print("Quit !!")
-
-
-
-        cap.release()
-        cv2.destroyAllWindows()
-        break
-
-cap.release()
-out.release()
-cv2.destroyAllWindows()
-
+nn += 1
