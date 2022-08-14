@@ -16,6 +16,7 @@ import argparse
 from os.path import join as ospj
 from torchvision import transforms
 import torchvision.utils as vutils
+import attacks
 
 def toTensor(img):
     assert type(img) == np.ndarray,'the img type is {}, but ndarry expected'.format(type(img))
@@ -287,14 +288,14 @@ class Solver_2(nn.Module):
         os.makedirs(args.result_dir, exist_ok=True)
 
 
-        fea_id_1 = self.vgg_encode(src_rgb)
+        fea_id_1 = self.vgg_encode(src_rgb) #source经过E_f得到r_s
 
-        fea_lm_1 = self.nets_ema.lm_linear_encoder(ref_lm)
-        fake_1 = self.nets_ema.linear_decoder(fea_lm_1, fea_id_1)
+        fea_lm_1 = self.nets_ema.lm_linear_encoder(ref_lm)#经过E_l得到γ
+        fake_1 = self.nets_ema.linear_decoder(fea_lm_1, fea_id_1)#γ+r_s ->(经过R_l)
 
         fake_1_eye = turn_eye(fake_1, ref_lm)
 
-        fake_lm = show_map(fake_1_eye)
+        fake_lm = show_map(fake_1_eye) #最终的l_t landmark
         lm_fake = tensor_to_np(fake_lm[0].unsqueeze(0))
         lm_fake_2 = tensor_to_np(fake_lm[1].unsqueeze(0))
         lm_fake_3 = tensor_to_np(fake_lm[2].unsqueeze(0))
@@ -362,11 +363,7 @@ class Solver(nn.Module):
 
         return s_ref
 
-
-
-
 print("Loading the RFG Model......")
-
 
 parser = argparse.ArgumentParser()
 
@@ -681,8 +678,6 @@ solver_2 = Solver_2(args)
 print("Loading the FAN Model......")
 fa = face_alignment.FaceAlignment(face_alignment.LandmarksType._2D, flip_input=True, device='cuda')
 
-
-
 def drawshape(landmarks):
     img = np.zeros((256, 256, 3))
     line_color = (255, 255, 255)
@@ -831,14 +826,6 @@ def drawshape(landmarks):
     # assert False
     return img
 
-
-
-
-
-
-
-
-
 def tran_point(point, M):
     pts = np.float32(point).reshape([-1,2])
     pts = np.hstack([pts,np.ones([len(pts),1])]).T
@@ -930,6 +917,7 @@ def get_arcface(rimg, shape):
 
     return img_crop, img_shape, LM
 
+#读取source图片
 img_crop = cv2.imread('./for_demo/0000375.jpg')
 img_crop_2 = cv2.imread('./for_demo/0000425.jpg')
 img_crop_3 = cv2.imread('./for_demo/0005000.jpg')
@@ -946,9 +934,6 @@ source_2 = toTensor(img_crop_2)
 source_3 = toTensor(img_crop_3)
 source_4 = toTensor(img_crop_4)
 
-
-
-
 source_all = np.zeros((4, 3, 256, 256))
 
 source_all = torch.from_numpy(source_all)
@@ -961,9 +946,28 @@ source_all[2,:,:,:] = source_3
 source_all[3,:,:,:] = source_4
 
 """
+！！！！！攻击这里？
 S_s: style code of source face(Es的output, 并经过adain)
 """
 source_style_code = solver.extract(source_all)
+
+"""
+攻击代码：传入原始的style_code作为Y和原图source_all作为x，返回攻击后的原图
+"""
+# Initialize Metrics
+l1_error, l2_error, min_dist, l0_error = 0.0, 0.0, 0.0, 0.0
+n_dist, n_samples = 0, 0
+
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+y = source_style_code.cpu().detach() # 原始的style_code作为Y
+
+ifgsm_attack = attacks.IFGSMAttack(model=solver,device=device)
+
+#传入X和Y,返回攻击后的adv_x
+x_adv,perturb = ifgsm_attack.perturb(source_all.clone().detach_(), y)
+
+#根据adv_x提取adv_style_code
+adv_style_code = solver.extract(x_adv)
 
 
 
@@ -975,8 +979,8 @@ frame = cv2.imread('./pose_guides/pose_1.jpg')
 pose guide image 经过 F_l 得到 action_code (shape_all)
 """
 
-preds = fa.get_landmarks(frame)
-# print(preds)
+preds = fa.get_landmarks(frame) #FAN: get 3D landmarks
+# print(preds) 
 img_crop2, img_shape, shape = get_arcface(frame, preds)
 # print(shape)
 
@@ -1025,27 +1029,19 @@ RFG模型：
 """
 img_fake, img_fake_2, img_fake_3, img_fake_4 = solver.sample(source_style_code, reference_all)
 
+#传入攻击后的style code，生成adv_img_fake... 之后流程一样
+img_fake_adv, img_fake_adv_2, img_fake_adv_3, img_fake_adv_4 = solver.sample(adv_style_code, reference_all)
+
 img_fake = cv2.cvtColor(img_fake, cv2.COLOR_RGB2BGR)
 img_fake_2 = cv2.cvtColor(img_fake_2, cv2.COLOR_RGB2BGR)
 img_fake_3 = cv2.cvtColor(img_fake_3, cv2.COLOR_RGB2BGR)
 img_fake_4 = cv2.cvtColor(img_fake_4, cv2.COLOR_RGB2BGR)
 
-
-# all = np.zeros((768, 1024, 3), np.uint8)
-#
-# all[:256, 384:640, :] = img_crop2
-#
-#
-# all[256:512, :256, :] = img_crop
-# all[256:512, 256:512, :] = img_crop_2
-# all[256:512, 512:768, :] = img_crop_3
-# all[256:512, 768:1024, :] = img_crop_4
-#
-#
-# all[512:, :256, :] = img_fake
-# all[512:, 256:512, :] = img_fake_2
-# all[512:, 512:768, :] = img_fake_3
-# all[512:, 768:1024, :] = img_fake_4
+#攻击后的output
+img_fake_adv = cv2.cvtColor(img_fake_adv, cv2.COLOR_RGB2BGR)
+img_fake_adv_2 = cv2.cvtColor(img_fake_adv_2, cv2.COLOR_RGB2BGR)
+img_fake_adv_3 = cv2.cvtColor(img_fake_adv_3, cv2.COLOR_RGB2BGR)
+img_fake_adv_4 = cv2.cvtColor(img_fake_adv_4, cv2.COLOR_RGB2BGR)
 
 """
 从上到下依次展示：
@@ -1092,8 +1088,16 @@ cv2.imwrite('./result/img_fake_4{}.png'.format(nn), img_fake_4)
 cv2.imwrite('./result/img_crop{}.png'.format(nn), img_crop2)
 cv2.imwrite('./result/img_fake_ori{}.png'.format(nn), img_crop)
 
-# save_image(lm_shape_fake[0], 1, './result/img_shape_fake{}.png'.format(nn))
 cv2.imwrite('./result/img_shape_fake{}.png'.format(nn), lm_fake*255)
 cv2.imwrite('./result/img_shape_ori{}.png'.format(nn), img_shape)
+
+
+#保存攻击后的output
+cv2.imwrite('./result/img_fake_adv{}.png'.format(nn), img_fake_adv)
+cv2.imwrite('./result/img_fake_adv_2{}.png'.format(nn), img_fake_adv_2)
+cv2.imwrite('./result/img_fake_adv_3{}.png'.format(nn), img_fake_adv_3)
+cv2.imwrite('./result/img_fake_adv_4{}.png'.format(nn), img_fake_adv_4)
+
+
 
 nn += 1
