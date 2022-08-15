@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 class IFGSMAttack(object):
-    def __init__(self, model=None, device=None,mask=None, epsilon=0.05, k=100, a=0.01):
+    def __init__(self, model=None, device=None,mask=None, epsilon=0.06, k=100, a=0.01):
         """
         FGSM, I-FGSM and PGD attacks
         epsilon: magnitude of attack
@@ -28,7 +28,7 @@ class IFGSMAttack(object):
         self.rand = True
 
         #attack on specific channel?
-        # self.channel = False
+        self.channel = False
     
     def perturb(self, X_nat, y):
         """
@@ -57,6 +57,14 @@ class IFGSMAttack(object):
             output = self.model.extract(X_nat) #攻击对象：style_code
 
             # self.model.zero_grad() #梯度清零需不需要？
+            self.model.nets_ema.style_encoder.zero_grad() #梯度清零?
+
+            #对单通道的梯度mask
+            if self.channel:
+                channel_idx = 2 #通道2噪声不明显
+                grad_channel_mask = torch.zeros_like(X_nat)
+                grad_channel_mask[:,channel_idx,:,:] = 1
+                grad_channel_mask = grad_channel_mask.to(self.device)
 
             # Minus in the loss means "towards" and plus means "away from"
             # use mse loss
@@ -69,6 +77,9 @@ class IFGSMAttack(object):
             loss.backward()
             grad = X_nat.grad.data
 
+            if self.channel:
+                grad = grad * grad_channel_mask
+
             img_src_adv = X_nat + self.a * torch.sign(grad)
 
             # eta = torch.clamp(img_src_adv - origin_img_src, min=-self.epsilon, max=self.epsilon)#加入的噪声
@@ -80,4 +91,6 @@ class IFGSMAttack(object):
             # Debug
             # X_adv, loss, grad, output_att, output_img = None, None, None, None, None
         #返回攻击后的img_src和noise
-        return X_nat, eta 
+        # return X_nat, eta 
+        return X_nat, X_nat-origin_img_src
+
