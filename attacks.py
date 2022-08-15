@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 class IFGSMAttack(object):
-    def __init__(self, model=None, device=None,mask=None, epsilon=0.15, k=100, a=0.01):
+    def __init__(self, model=None, device=None,mask=None, epsilon=0.05, k=100, a=0.01):
         """
         FGSM, I-FGSM and PGD attacks
         epsilon: magnitude of attack
@@ -36,6 +36,7 @@ class IFGSMAttack(object):
         """
         origin_img_src = X_nat.clone().detach_()#保留原始的img_src
         origin_img_src = origin_img_src.to(self.device)
+        y = y.to(self.device)
 
         if self.rand: # PGD attack
             X_nat = X_nat.to(self.device)
@@ -43,18 +44,19 @@ class IFGSMAttack(object):
             x_tmp = X_nat + random
             X_nat = x_tmp.clone().detach_()
 
-        # X_nat.to('cpu')
-        
+
+        X_nat = X_nat.to(self.device)        
         # self.model.set_input(X_nat)#设置model的数据
 
         for i in range(self.k):
-            X_nat.requires_grad_(True)
+            #注意要将solver.extract中的注解no_grad()注释掉！！！
+            X_nat.requires_grad = True 
             # self.model.img_src.requires_grad = True #对img_src求梯度
             # self.model.forward()
 
             output = self.model.extract(X_nat) #攻击对象：style_code
 
-            self.model.zero_grad()
+            # self.model.zero_grad() #梯度清零需不需要？
 
             # Minus in the loss means "towards" and plus means "away from"
             # use mse loss
@@ -72,8 +74,8 @@ class IFGSMAttack(object):
             # eta = torch.clamp(img_src_adv - origin_img_src, min=-self.epsilon, max=self.epsilon)#加入的噪声
             # 对batch 做 mean
             eta = torch.mean(torch.clamp(img_src_adv - origin_img_src, min=-self.epsilon, max=self.epsilon).detach_(),dim=0)#加入的噪声
-
-            X_nat = torch.clamp(origin_img_src + eta, min=-1, max=1).detach_()#攻击后的img_src结果
+            #注意tensor取值0~1
+            X_nat = torch.clamp(origin_img_src + eta, min=0, max=1).detach_()#攻击后的img_src结果
 
             # Debug
             # X_adv, loss, grad, output_att, output_img = None, None, None, None, None

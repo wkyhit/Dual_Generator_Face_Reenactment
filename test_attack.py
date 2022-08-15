@@ -354,7 +354,8 @@ class Solver(nn.Module):
 
         return img_fake, img_fake_2, img_fake_3, img_fake_4
 
-    @torch.no_grad()
+    #需要注释掉注解，否则X.grad无法取得梯度
+    # @torch.no_grad() 
     def extract(self, src):
 
         src = src.to(self.device)
@@ -1098,6 +1099,31 @@ cv2.imwrite('./result/img_fake_adv_2{}.png'.format(nn), img_fake_adv_2)
 cv2.imwrite('./result/img_fake_adv_3{}.png'.format(nn), img_fake_adv_3)
 cv2.imwrite('./result/img_fake_adv_4{}.png'.format(nn), img_fake_adv_4)
 
+#保存攻击后的原图
+adv_img_crop = x_adv[0,:,:,:].unsqueeze(0)
+adv_img_crop = tensor_to_np(adv_img_crop)
+adv_img_crop = cv2.cvtColor(adv_img_crop, cv2.COLOR_RGB2BGR)
+adv_img_crop_2 = x_adv[1,:,:,:].unsqueeze(0)
+adv_img_crop_2 = tensor_to_np(adv_img_crop_2)
+adv_img_crop_2 = cv2.cvtColor(adv_img_crop_2, cv2.COLOR_RGB2BGR)
+adv_img_crop_3 = x_adv[2,:,:,:].unsqueeze(0)
+adv_img_crop_3 = tensor_to_np(adv_img_crop_3)
+adv_img_crop_3 = cv2.cvtColor(adv_img_crop_3, cv2.COLOR_RGB2BGR)
+adv_img_crop_4 = x_adv[3,:,:,:].unsqueeze(0)
+adv_img_crop_4 = tensor_to_np(adv_img_crop_4)
+adv_img_crop_4 = cv2.cvtColor(adv_img_crop_4, cv2.COLOR_RGB2BGR)
+
+
+cv2.imwrite('./result/adv_img_crop{}.png'.format(nn), adv_img_crop)
+cv2.imwrite('./result/adv_img_crop_2{}.png'.format(nn), adv_img_crop_2)
+cv2.imwrite('./result/adv_img_crop_3{}.png'.format(nn), adv_img_crop_3)
+cv2.imwrite('./result/adv_img_crop_4{}.png'.format(nn), adv_img_crop_4)
+
+#测试下原图保存
+original_input_image = source_all[0,:,:,:].unsqueeze(0)
+original_input_image = tensor_to_np(original_input_image)
+original_input_image = cv2.cvtColor(original_input_image, cv2.COLOR_RGB2BGR)
+cv2.imwrite('./result/original_input_image{}.png'.format(nn), original_input_image)
 
 
 nn += 1
