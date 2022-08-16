@@ -1101,7 +1101,7 @@ for i in range(total_batch): #每次读取batch_size=4张图片
         all[768:, 768:1024, :] = img_fake_4
 
         #保存原始的reenactment output
-        cv2.imwrite('./origin_result/img_fake_{}_p{}.png'.format(source_id, pose_id), img_fake)
+        cv2.imwrite('./origin_result/img_fake_s{}_p{}.png'.format(source_id, pose_id), img_fake)
         cv2.imwrite('./origin_result/img_fake_s{}_p{}.png'.format(source_id+1, pose_id), img_fake_2)
         cv2.imwrite('./origin_result/img_fake_s{}_p{}.png'.format(source_id+2, pose_id), img_fake_3)
         cv2.imwrite('./origin_result/img_fake_s{}_p{}.png'.format(source_id+3, pose_id), img_fake_4)
