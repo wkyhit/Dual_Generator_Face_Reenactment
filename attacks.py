@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 class IFGSMAttack(object):
-    def __init__(self, model=None, device=None,mask=None, epsilon=0.06, k=100, a=0.01):
+    def __init__(self, model=None, device=None,mask=None, epsilon=0.1, k=100, a=0.01):
         """
         FGSM, I-FGSM and PGD attacks
         epsilon: magnitude of attack
@@ -28,7 +28,7 @@ class IFGSMAttack(object):
         self.rand = True
 
         #attack on specific channel?
-        self.channel = False
+        self.channel = True
     
     def perturb(self, X_nat, y):
         """
