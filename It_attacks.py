@@ -55,7 +55,6 @@ class IFGSMAttack(object):
             # self.model.forward()
 
             style_code = self.model.extract(X_nat) #先提取style_code
-            print(style_code.type())
             _,_,_,_,output = self.model.sample(style_code,reference_lt) #攻击对象：最终生成的It
 
             # self.model.zero_grad() #梯度清零需不需要？
@@ -86,9 +85,9 @@ class IFGSMAttack(object):
 
             img_src_adv = X_nat + self.a * torch.sign(grad)
 
-            # eta = torch.clamp(img_src_adv - origin_img_src, min=-self.epsilon, max=self.epsilon)#加入的噪声
+            eta = torch.clamp(img_src_adv - origin_img_src, min=-self.epsilon, max=self.epsilon)#加入的噪声
             # 对batch 做 mean
-            eta = torch.mean(torch.clamp(img_src_adv - origin_img_src, min=-self.epsilon, max=self.epsilon).detach_(),dim=0)#加入的噪声
+            # eta = torch.mean(torch.clamp(img_src_adv - origin_img_src, min=-self.epsilon, max=self.epsilon).detach_(),dim=0)#加入的噪声
             #注意tensor取值0~1
             X_nat = torch.clamp(origin_img_src + eta, min=0, max=1).detach_()#攻击后的img_src结果
 
