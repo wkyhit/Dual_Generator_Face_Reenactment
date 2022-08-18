@@ -947,7 +947,7 @@ for root, dirs, files in os.walk(source_path):
 batch_size = 4
 total_size = len(source_list) #需要保证整除4
 total_batch = int(total_size/batch_size) 
-source_id = 1
+source_id = 0
 for i in range(total_batch): #每次读取batch_size=4张图片
 
     #读取source图片
