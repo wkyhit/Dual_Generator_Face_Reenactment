@@ -55,7 +55,8 @@ class IFGSMAttack(object):
             # self.model.forward()
 
             style_code = self.model.extract(X_nat) #先提取style_code
-            output = self.model.sample(style_code,reference_lt) #攻击对象：最终生成的It
+            print(style_code.type())
+            _,_,_,_,output = self.model.sample(style_code,reference_lt) #攻击对象：最终生成的It
 
             # self.model.zero_grad() #梯度清零需不需要？
             self.model.nets_ema.style_encoder.zero_grad() #梯度清零?

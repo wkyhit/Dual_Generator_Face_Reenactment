@@ -946,7 +946,8 @@ for root, dirs, files in os.walk(source_path):
 batch_size = 4
 total_size = len(source_list) #需要保证整除4
 total_batch = int(total_size/batch_size) 
-source_id = 1
+source_id = 0
+
 for i in range(total_batch): #每次读取batch_size=4张图片
 
     #读取source图片
@@ -1101,10 +1102,15 @@ for i in range(total_batch): #每次读取batch_size=4张图片
         all[768:, 768:1024, :] = img_fake_4
 
         #保存原始的reenactment output
-        cv2.imwrite('./origin_result/img_fake_s{}_p{}.png'.format(source_id, pose_id), img_fake)
-        cv2.imwrite('./origin_result/img_fake_s{}_p{}.png'.format(source_id+1, pose_id), img_fake_2)
-        cv2.imwrite('./origin_result/img_fake_s{}_p{}.png'.format(source_id+2, pose_id), img_fake_3)
-        cv2.imwrite('./origin_result/img_fake_s{}_p{}.png'.format(source_id+3, pose_id), img_fake_4)
+        cv2.imwrite('./origin_result/{}.png'.format(source_id*10+pose_id), img_fake)
+        cv2.imwrite('./origin_result/{}.png'.format((source_id+1)*10+pose_id), img_fake_2)
+        cv2.imwrite('./origin_result/{}.png'.format((source_id+2)*10+pose_id), img_fake_3)
+        cv2.imwrite('./origin_result/{}.png'.format((source_id+3)*10+pose_id), img_fake_4)
+
+        # cv2.imwrite('./origin_result/img_fake_s{}_p{}.png'.format(source_id, pose_id), img_fake)
+        # cv2.imwrite('./origin_result/img_fake_s{}_p{}.png'.format(source_id+1, pose_id), img_fake_2)
+        # cv2.imwrite('./origin_result/img_fake_s{}_p{}.png'.format(source_id+2, pose_id), img_fake_3)
+        # cv2.imwrite('./origin_result/img_fake_s{}_p{}.png'.format(source_id+3, pose_id), img_fake_4)
 
         # cv2.imwrite('./result/img_crop{}.png'.format(nn), img_crop2) #原始的pose guide图输入
         # cv2.imwrite('./result/img_fake_ori{}.png'.format(nn), img_crop) #原始的source图1输入
@@ -1113,10 +1119,15 @@ for i in range(total_batch): #每次读取batch_size=4张图片
         # cv2.imwrite('./result/img_shape_ori{}.png'.format(nn), img_shape) #单独pose生成的landmark图
 
         #保存攻击后的output
-        cv2.imwrite('./adv_result/img_fake_adv_s{}_p{}.png'.format(source_id, pose_id), img_fake_adv)
-        cv2.imwrite('./adv_result/img_fake_adv_s{}_p{}.png'.format(source_id+1, pose_id), img_fake_adv_2)
-        cv2.imwrite('./adv_result/img_fake_adv_s{}_p{}.png'.format(source_id+2, pose_id), img_fake_adv_3)
-        cv2.imwrite('./adv_result/img_fake_adv_s{}_p{}.png'.format(source_id+3, pose_id), img_fake_adv_4)
+        cv2.imwrite('./adv_result/{}.png'.format(source_id*10+pose_id), img_fake_adv)
+        cv2.imwrite('./adv_result/{}.png'.format((source_id+1)*10+pose_id), img_fake_adv_2)
+        cv2.imwrite('./adv_result/{}.png'.format((source_id+2)*10+pose_id), img_fake_adv_3)
+        cv2.imwrite('./adv_result/{}.png'.format((source_id+3)*10+pose_id), img_fake_adv_4)
+
+        # cv2.imwrite('./adv_result/img_fake_adv_s{}_p{}.png'.format(source_id, pose_id), img_fake_adv)
+        # cv2.imwrite('./adv_result/img_fake_adv_s{}_p{}.png'.format(source_id+1, pose_id), img_fake_adv_2)
+        # cv2.imwrite('./adv_result/img_fake_adv_s{}_p{}.png'.format(source_id+2, pose_id), img_fake_adv_3)
+        # cv2.imwrite('./adv_result/img_fake_adv_s{}_p{}.png'.format(source_id+3, pose_id), img_fake_adv_4)
 
         #保存攻击后的原图
         adv_img_crop = x_adv[0,:,:,:].unsqueeze(0)
@@ -1133,16 +1144,32 @@ for i in range(total_batch): #每次读取batch_size=4张图片
         adv_img_crop_4 = cv2.cvtColor(adv_img_crop_4, cv2.COLOR_RGB2BGR)
 
         #保存攻击后的原图
-        cv2.imwrite("./adv_source/img_crop_adv_s{}_p{}.png".format(source_id, pose_id), adv_img_crop)
-        cv2.imwrite("./adv_source/img_crop_adv_s{}_p{}.png".format(source_id+1, pose_id), adv_img_crop_2)
-        cv2.imwrite("./adv_source/img_crop_adv_s{}_p{}.png".format(source_id+2, pose_id), adv_img_crop_3)
-        cv2.imwrite("./adv_source/img_crop_adv_s{}_p{}.png".format(source_id+3, pose_id), adv_img_crop_4)
+        cv2.imwrite('./adv_source/{}.png'.format(source_id*10+pose_id), adv_img_crop)
+        cv2.imwrite('./adv_source/{}.png'.format((source_id+1)*10+pose_id), adv_img_crop_2)
+        cv2.imwrite('./adv_source/{}.png'.format((source_id+2)*10+pose_id), adv_img_crop_3)
+        cv2.imwrite('./adv_source/{}.png'.format((source_id+3)*10+pose_id), adv_img_crop_4)
+        # cv2.imwrite("./adv_source/img_crop_adv_s{}_p{}.png".format(source_id, pose_id), adv_img_crop)
+        # cv2.imwrite("./adv_source/img_crop_adv_s{}_p{}.png".format(source_id+1, pose_id), adv_img_crop_2)
+        # cv2.imwrite("./adv_source/img_crop_adv_s{}_p{}.png".format(source_id+2, pose_id), adv_img_crop_3)
+        # cv2.imwrite("./adv_source/img_crop_adv_s{}_p{}.png".format(source_id+3, pose_id), adv_img_crop_4)
 
-        #测试下原图保存
-        # original_input_image = source_all[0,:,:,:].unsqueeze(0)
-        # original_input_image = tensor_to_np(original_input_image)
-        # original_input_image = cv2.cvtColor(original_input_image, cv2.COLOR_RGB2BGR)
-        # cv2.imwrite('./result/original_input_image{}.png'.format(nn), original_input_image)
+        #保存攻击前的原图
+        original_input_image = source_all[0,:,:,:].unsqueeze(0)
+        original_input_image_2 = source_all[1,:,:,:].unsqueeze(0)
+        original_input_image_3 = source_all[2,:,:,:].unsqueeze(0)
+        original_input_image_4 = source_all[3,:,:,:].unsqueeze(0)
+        original_input_image = tensor_to_np(original_input_image)
+        original_input_image_2 = tensor_to_np(original_input_image_2)
+        original_input_image_3 = tensor_to_np(original_input_image_3)
+        original_input_image_4 = tensor_to_np(original_input_image_4)
+        original_input_image = cv2.cvtColor(original_input_image, cv2.COLOR_RGB2BGR)
+        original_input_image_2 = cv2.cvtColor(original_input_image_2, cv2.COLOR_RGB2BGR)
+        original_input_image_3 = cv2.cvtColor(original_input_image_3, cv2.COLOR_RGB2BGR)
+        original_input_image_4 = cv2.cvtColor(original_input_image_4, cv2.COLOR_RGB2BGR)
+        cv2.imwrite('./origin_source/{}.png'.format(source_id*10+pose_id), original_input_image)
+        cv2.imwrite('./origin_source/{}.png'.format((source_id+1)*10+pose_id), original_input_image_2)
+        cv2.imwrite('./origin_source/{}.png'.format((source_id+2)*10+pose_id), original_input_image_3)
+        cv2.imwrite('./origin_source/{}.png'.format((source_id+3)*10+pose_id), original_input_image_4)
 
 
         pose_id += 1
