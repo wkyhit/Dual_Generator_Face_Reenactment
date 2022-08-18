@@ -30,6 +30,25 @@ class IFGSMAttack(object):
         #attack on specific channel?
         self.channel = True
     
+    def _batch_multiply_tensor_by_vector(self,vector, batch_tensor):
+        """Equivalent to the following
+        for ii in range(len(vector)):
+            batch_tensor.data[ii] *= vector[ii]
+        return batch_tensor
+        """
+        return (
+            batch_tensor.transpose(0, -1) * vector).transpose(0, -1).contiguous()
+
+    def batch_multiply(self,float_or_vector, tensor):
+        if isinstance(float_or_vector, torch.Tensor):
+            assert len(float_or_vector) == len(tensor)
+            tensor = self._batch_multiply_tensor_by_vector(float_or_vector, tensor)
+        elif isinstance(float_or_vector, float):
+            tensor *= float_or_vector
+        else:
+            raise TypeError("Value has to be float or torch.Tensor")
+        return tensor
+
     def perturb(self, X_nat, y, reference_lt):
         """
         Vanilla Attack.
@@ -87,7 +106,15 @@ class IFGSMAttack(object):
             # img_src_adv = X_nat + self.a * torch.sign(grad) #l Infinity attack
 
             #尝试L2 attack
-            img_src_adv = X_nat + grad/grad.norm(p=2,dim=1,keepdim=True) * self.a #l 2 attack
+            batch_size = grad.size(0)
+            p = 2 # L2
+            samll_constant = 1e-6 #防止梯度为0的情况
+            norm = grad.abs().pow(p).view(batch_size, -1).sum(dim=1).pow(1. / p)
+            norm = torch.max(norm, torch.ones_like(norm)*samll_constant)
+            img_src_adv = X_nat + self.batch_multiply(1./norm, grad)
+
+            #此写法会出现梯度为0的情况！！！
+            # img_src_adv = X_nat + grad/grad.norm(p=2,dim=0,keepdim=True) * self.a 
 
             eta = torch.clamp(img_src_adv - origin_img_src, min=-self.epsilon, max=self.epsilon)#加入的噪声
             # 对batch 做 mean
