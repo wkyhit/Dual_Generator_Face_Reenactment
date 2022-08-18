@@ -17,7 +17,7 @@ from os.path import join as ospj
 import torchvision
 from torchvision import transforms
 import torchvision.utils as vutils
-import attacks
+import It_attacks
 
 def toTensor(img):
     assert type(img) == np.ndarray,'the img type is {}, but ndarry expected'.format(type(img))
@@ -332,7 +332,8 @@ class Solver(nn.Module):
         for ckptio in self.ckptios:
             ckptio.load(step)
 
-    @torch.no_grad()
+    #需要注释掉，否则无法获得梯度
+    # @torch.no_grad()
     def sample(self, src, ref):
 
         ref = ref.to(self.device)
@@ -351,8 +352,8 @@ class Solver(nn.Module):
         img_fake_3 = tensor_to_np(x_fake[2].unsqueeze(0))
         img_fake_4 = tensor_to_np(x_fake[3].unsqueeze(0))
 
-
-        return img_fake, img_fake_2, img_fake_3, img_fake_4
+        #同时返回了x_fake
+        return img_fake, img_fake_2, img_fake_3, img_fake_4, x_fake
 
     #需要注释掉注解，否则X.grad无法取得梯度
     # @torch.no_grad() 
@@ -982,25 +983,10 @@ for i in range(total_batch): #每次读取batch_size=4张图片
     """
     source_style_code = solver.extract(source_all)
 
-    """
-    攻击代码：传入原始的style_code作为Y和原图source_all作为x，返回攻击后的原图
-    """
     # Initialize Metrics
     l1_error, l2_error, min_dist, l0_error = 0.0, 0.0, 0.0, 0.0
     n_dist, n_samples = 0, 0
-
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    y = source_style_code.cpu().detach() # 原始的style_code作为Y
-
-    ifgsm_attack = attacks.IFGSMAttack(model=solver,device=device)
-
-    #传入X和Y,返回攻击后的adv_x
-    x_adv,perturb = ifgsm_attack.perturb(source_all.clone().detach_(), y)
-
-    #根据adv_x提取adv_style_code
-    adv_style_code = solver.extract(x_adv)
-
-
 
     pose_id = 1
     # 传入pose_guide images （循环10张pose_guide images）
@@ -1058,10 +1044,19 @@ for i in range(total_batch): #每次读取batch_size=4张图片
         传入landmark l_t 与 source image 生成的 S_s(style code)
         生成最终I_t reenactment output
         """
-        img_fake, img_fake_2, img_fake_3, img_fake_4 = solver.sample(source_style_code, reference_all)
+        img_fake, img_fake_2, img_fake_3, img_fake_4,y_fake = solver.sample(source_style_code, reference_all)
+        
+        """
+        攻击代码：传入原始的I_t作为Y和原图source_all作为x，返回攻击后的原图
+        """
+        ifgsm_attack = It_attacks.IFGSMAttack(model=solver,device=device)
+        y = y_fake.cpu().detach() # 原始的输出作为Y
+        x_adv,perturb = ifgsm_attack.perturb(X_nat=source_all.clone().detach_(), y=y,reference_lt=reference_all.clone().detach_())
+        
+        #根据攻击后的x_adv，提取style code,并生成对应的adv_output
+        adv_style_code = solver.extract(x_adv)
+        img_fake_adv,img_fake_adv_2,img_fake_adv_3,img_fake_adv_4,adv_y_fake = solver.sample(adv_style_code, reference_all)
 
-        #传入攻击后的style code，生成adv_img_fake... 之后流程一样
-        img_fake_adv, img_fake_adv_2, img_fake_adv_3, img_fake_adv_4 = solver.sample(adv_style_code, reference_all)
 
         img_fake = cv2.cvtColor(img_fake, cv2.COLOR_RGB2BGR)
         img_fake_2 = cv2.cvtColor(img_fake_2, cv2.COLOR_RGB2BGR)
@@ -1073,32 +1068,6 @@ for i in range(total_batch): #每次读取batch_size=4张图片
         img_fake_adv_2 = cv2.cvtColor(img_fake_adv_2, cv2.COLOR_RGB2BGR)
         img_fake_adv_3 = cv2.cvtColor(img_fake_adv_3, cv2.COLOR_RGB2BGR)
         img_fake_adv_4 = cv2.cvtColor(img_fake_adv_4, cv2.COLOR_RGB2BGR)
-
-        """
-        从上到下依次展示：
-        1- 实时视频的frame图 
-        2- img_crop_x 为 4张 source图
-        3- lm_fake_x 为 4张轮廓图 即 l_t
-        4- img_fake_x 为最终的output 即 I_t
-        """
-        all = np.zeros((1024, 1024, 3), np.uint8)
-
-        all[:256, 384:640, :] = img_crop2
-
-        all[256:512, :256, :] = img_crop
-        all[256:512, 256:512, :] = img_crop_2
-        all[256:512, 512:768, :] = img_crop_3
-        all[256:512, 768:1024, :] = img_crop_4
-
-        all[512:768, :256, :] = lm_fake*255
-        all[512:768, 256:512, :] = lm_fake_2*255
-        all[512:768, 512:768, :] = lm_fake_3 * 255
-        all[512:768, 768:1024, :] = lm_fake_4 * 255
-
-        all[768:, :256, :] = img_fake
-        all[768:, 256:512, :] = img_fake_2
-        all[768:, 512:768, :] = img_fake_3
-        all[768:, 768:1024, :] = img_fake_4
 
         #保存原始的reenactment output
         cv2.imwrite('./origin_result/img_fake_s{}_p{}.png'.format(source_id, pose_id), img_fake)
