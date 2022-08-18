@@ -43,6 +43,7 @@ class IFGSMAttack(object):
             X_nat = X_nat.to(self.device)
             random = torch.rand_like(origin_img_src).uniform_(-self.epsilon,self.epsilon).to(self.device)
             x_tmp = X_nat + random
+            x_tmp = torch.clamp(x_tmp, min=0, max=1).detach_()#攻击后的img_src结果
             X_nat = x_tmp.clone().detach_()
 
 
@@ -60,7 +61,6 @@ class IFGSMAttack(object):
             # self.model.zero_grad() #梯度清零需不需要？
             self.model.nets_ema.style_encoder.zero_grad() #梯度清零?
             self.model.nets_ema.generator.zero_grad() #梯度清零?
-            
             
             #对单通道的梯度mask
             if self.channel:
@@ -83,7 +83,11 @@ class IFGSMAttack(object):
             if self.channel:
                 grad = grad * grad_channel_mask
 
-            img_src_adv = X_nat + self.a * torch.sign(grad)
+            #基于 L infinity
+            # img_src_adv = X_nat + self.a * torch.sign(grad) #l Infinity attack
+
+            #尝试L2 attack
+            img_src_adv = X_nat + grad/grad.norm(p=2,dim=1,keepdim=True) * self.a #l 2 attack
 
             eta = torch.clamp(img_src_adv - origin_img_src, min=-self.epsilon, max=self.epsilon)#加入的噪声
             # 对batch 做 mean
