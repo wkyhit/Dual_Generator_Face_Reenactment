@@ -125,7 +125,7 @@ class IFGSMAttack(object):
             grad = self.batch_multiply(1./norm, grad)
             if self.channel:
                 grad = grad * grad_channel_mask
-            img_src_adv = X_nat + self.a * grad
+            img_src_adv = X_nat + grad
 
             #此写法会出现梯度为0的情况！！！
             # img_src_adv = X_nat + grad/grad.norm(p=2,dim=0,keepdim=True) * self.a 
