@@ -89,29 +89,43 @@ class IFGSMAttack(object):
                 grad_channel_mask = grad_channel_mask.to(self.device)
 
             # Minus in the loss means "towards" and plus means "away from"
-            # use mse loss
-            loss = self.loss_fn(output, y)
+            
+            # 1- use mse loss
+            # loss = self.loss_fn(output, y)
+            
+            # 2- use l1 loss
+            # loss = self.loss_fn2(output, y)
 
-            # loss = ((output - y)**2).sum() #self_defined loss
+            # 3- self_defined loss（mse loss）
+            # loss = ((output - y)**2).sum() 
             # loss = loss.mean()
+
+            # 4- nullfying attack (mse loss)
+            loss = -1*((output-origin_img_src)**2).sum()
+            loss = loss.mean()
+            #or
+            # loss = -1*self.loss_fn(output, origin_img_src)
 
             loss.requires_grad_(True) #!!解决无grad bug
             loss.backward()
             grad = X_nat.grad.data
 
-            if self.channel:
-                grad = grad * grad_channel_mask
 
-            #基于 L infinity
+            #******基于 L infinity*******
+            # if self.channel:
+            #     grad = grad * grad_channel_mask
             # img_src_adv = X_nat + self.a * torch.sign(grad) #l Infinity attack
 
-            #尝试L2 attack
+            #*****基于L2 attack*******
             batch_size = grad.size(0)
             p = 2 # L2
             samll_constant = 1e-6 #防止梯度为0的情况
             norm = grad.abs().pow(p).view(batch_size, -1).sum(dim=1).pow(1. / p)
             norm = torch.max(norm, torch.ones_like(norm)*samll_constant)
-            img_src_adv = X_nat + self.batch_multiply(1./norm, grad)
+            grad = self.batch_multiply(1./norm, grad)
+            if self.channel:
+                grad = grad * grad_channel_mask
+            img_src_adv = X_nat + self.a * grad
 
             #此写法会出现梯度为0的情况！！！
             # img_src_adv = X_nat + grad/grad.norm(p=2,dim=0,keepdim=True) * self.a 
