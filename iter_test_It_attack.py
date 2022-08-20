@@ -928,7 +928,7 @@ for root, dirs, files in os.walk(pose_path):
     for file in files:
         if file.endswith(".jpg"):
             pose_list.append(os.path.join(root, file))
-
+pose_list.sort()
 # print(pose_list) #for test !!!!!!
 
 """
@@ -940,7 +940,7 @@ source_list = []
 for root, dirs, files in os.walk(source_path):
     for file in files:
         source_list.append(os.path.join(root, file))
-
+source_list.sort()
 # print(source_list) #for test !!!!!!
 
 #根据batch_size读取图片

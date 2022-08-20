@@ -119,7 +119,8 @@ class IFGSMAttack(object):
             #*****基于L2 attack*******
             batch_size = grad.size(0)
             p = 2 # L2
-            samll_constant = 1e-6 #防止梯度为0的情况
+            #防止梯度为0的情况
+            samll_constant = 1e-6 
             norm = grad.abs().pow(p).view(batch_size, -1).sum(dim=1).pow(1. / p)
             norm = torch.max(norm, torch.ones_like(norm)*samll_constant)
             grad = self.batch_multiply(1./norm, grad)
